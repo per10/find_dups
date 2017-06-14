@@ -1,8 +1,17 @@
+#!/usr/bin/python
 import sys, os, hashlib
 
 
-# Returns a map from directory -> [file1, file2, ...]
 def get_file_dict(path):
+    """
+    Traverse the whole tree under the given path and create a dictionary
+    mapping each full path to a list of the files contained in that directory.
+
+    Example: {'/home/user/pics/': ['img1.jpg', img2,jpg]}
+
+    :param path: root path to start the search from
+    :return: a dictionary mapping each directory to a list of the files
+    """
     dirs = {}
     if path is not None:
         os.chdir(path)
@@ -12,39 +21,56 @@ def get_file_dict(path):
     return dirs
 
 
-# Creates a map from MD5 hash -> [path1/filename1, path2/filename2, ...]
-def create_file_map(dirs):
-    hash_to_file = {}
-    for dir, files in dirs.items():
+def create_file_map(directory_dict):
+    """
+    Create a dictionary that maps the hash value of each unique file to a list
+    of the full paths of each copy of that file, even if those files have
+    different names.
+
+    :param directory_dict: dictionary mapping directory -> list of files
+    :return: dictionary mapping hash value of file to occurences of that file
+    """
+    hash_to_files_dict = {}
+    for directory, files in directory_dict.items():
         for filename in files:
-            filepath = dir+'/'+filename
+            filepath = directory+'/'+filename
             f = open(filepath)
             filehash = hashlib.md5(f.read()).hexdigest()
-            if filehash in hash_to_file:
-                hash_to_file[filehash].add(filepath)
+            if filehash in hash_to_files_dict:
+                hash_to_files_dict[filehash].add(filepath)
             else:
-                hash_to_file[filehash] = {filepath}
-    return hash_to_file
+                hash_to_files_dict[filehash] = {filepath}
+    return hash_to_files_dict
 
 
-def print_duplicates(hash_to_file):
+def print_duplicates(hash_to_files_dict):
+    """
+    Prints a list of all occurences of a file that occurs more than once in
+    the directory tree.
+
+    :param hash_to_files_dict: dictionary mapping hash value of file to occurences of that file
+    :return: none
+    """
     print "* Found the following duplicate files"
-    for hash, files in hash_to_file.items():
+    for hash, files in hash_to_files_dict.items():
         if len(files) > 1:
             file_list = list(files)
             print file_list[0].split('/')[-1]
             for file in file_list:
                 print '\t' +  file
 
+
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print "\nUsage: python find_dups.py _directory_\n\n" \
-              "_directory_ points to the path, relative or absolute, you want \n" \
-              "to start your search for duplicate files in. Example:\n\n" \
+        print "Usage: python find_dups.py _directory_\n\n" \
+              "_directory_ points to the path, relative or absolute, in which\n" \
+              "to start the search for duplicate files. Example:\n\n" \
               "python find_dups.py .\n"
         exit(0)
-    print "* Checking path", sys.argv[1]
-    path = sys.argv[1]
-    dirs = get_file_dict(path)
-    file_map = create_file_map(dirs)
-    print_duplicates(file_map)
+    if os.path.isdir(sys.argv[1]):
+        print "* Checking path", sys.argv[1]
+        dirs = get_file_dict(sys.argv[1])
+        file_map = create_file_map(dirs)
+        print_duplicates(file_map)
+    else:
+        print "Invalid path name:", sys.argv[1]
